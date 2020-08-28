@@ -1,0 +1,47 @@
+ext {
+    // Build configuration
+    buildToolsVersion = '28.0.0'
+    minSdkVersion = 21
+    compileSdkVersion = 28
+    targetSdkVersion = 28
+    // Gradle plugin
+    androidPluginVersion = '3.0.1'
+
+
+    // Library
+    ankoVersion = '0.10.3'
+    archComponentVersion = '1.1.1'
+    daggerVersion = '2.25.4'
+    glideVersion = '4.1.1'
+    gsonVersion = '2.7'
+    kotlinVersion = '1.3.61'
+    kotlinXVersion = '0.9.1'
+    okHttpVersion = '3.8.1'
+    retrofitVersion = '2.6.0'
+    kotlinXConverterVersion = '0.4.0'
+    rxAndroidVersion = '2.0.1'
+    rxBindingVersion = '3.1.0'
+    rxJavaVersion = '2.1.3'
+    rxKotlinVersion = '2.2.0'
+    roomVersion = '2.2.3'
+    supportLibVersion = '28.0.0'
+    lottieVersion = '2.7.0'
+    multidexVersion = '1.0.1'
+    chartVersion = 'v3.0.3'
+    ktxVersion = '1.0.0-alpha1'
+    constraintLayout = '1.1.3'
+    easyValidationVersion = '1.0.1'
+    jwtDecodeVersion='1.4.0'
+    googleMapVersion='17.0.0'
+    //test
+    mockitoVersion ='2.1.0'
+    mockitoInlineVersion ='2.21.0'
+
+
+    // android test
+    junitVersion = '4.12'
+    androidxJunitVersion = '1.1.1'
+    espressVersion = '3.1.0'
+    androidTestRuleVersion='1.1.0'
+
+}

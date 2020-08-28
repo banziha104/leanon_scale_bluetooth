@@ -1,0 +1,3 @@
+include ':scaleble'
+include ':app'
+rootProject.name = "leanon_scale_bluetooth"
