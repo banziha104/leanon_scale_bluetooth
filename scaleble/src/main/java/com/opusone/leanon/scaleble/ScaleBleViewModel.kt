@@ -32,26 +32,26 @@ class ScaleBleViewModel (
     IDataReceiver by dataReceiver{
 
     private val compositeDisposable = CompositeDisposable()
-    private var currentDevice : QNBleDevice? = null
+    internal var currentDevice : QNBleDevice? = null
 
     fun observe(scaleApi : QNBleApi){
         observeDeviceFinding(scaleApi)
     }
 
     fun observeDeviceFinding(scaleApi : QNBleApi){
-        compositeDisposable +=
-            discoveryObserver
-                .io()
-                .subscribe({
-                    if (it == DeviceDiscoveryType.ON_DEVICE_DISCERVER && it.device != null){
-                        currentDevice = it.device
-                        scaleApi.connectDevice(it.device!!,createQNUser(context,scaleApi)){ code,msg ->
-                            Log.d(bleTag,"$code $msg")
-                        }
-                    }
-                },{
-                    it.printStackTrace()
-                })
+//        compositeDisposable +=
+//            discoveryObserver
+//                .io()
+//                .subscribe({
+//                    if (it == DeviceDiscoveryType.ON_DEVICE_DISCERVER && it.device != null){
+//                        currentDevice = it.device
+//                        scaleApi.connectDevice(it.device!!,createQNUser(context,scaleApi)){ code,msg ->
+//                            Log.d(bleTag,"$code $msg")
+//                        }
+//                    }
+//                },{
+//                    it.printStackTrace()
+//                })
 
         compositeDisposable += dataObserver.io().subscribe {
             if (it.data?.weight != null){

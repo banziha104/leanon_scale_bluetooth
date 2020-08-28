@@ -57,14 +57,12 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
 
         compositeDisposable += ble.discoveryObserver
             .subscribe({
-                bleLog("디비에 넣기 시작")
                 if (it == DeviceDiscoveryType.ON_DEVICE_DISCERVER && it.device != null){
                     currentDevice = it.device!!
                     LocalDataBase
                         .deviceDatabase
                         .deviceDao()
                         .insertOrUpdate(it.device!!.run {
-                        bleLog("인설트")
                         DeviceEntity(mac, name, modeId, bluetoothName, rssi, isScreenOn, isSupportWifi, false, false, 4, deviceType)
                     }).io().subscribe({
 
@@ -91,7 +89,12 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
         compositeDisposable += start.clicks()
             .subscribe({
                 bleLog("BLE START")
-                ble.startScan().subscribe { }
+                ble.startScan().subscribe({
+                    bleLog("성공함 ${it.mac}")
+                },{
+                    bleLog("실패함")
+                    it.printStackTrace()
+                })
             },{
                 it.printStackTrace()
             },{
@@ -102,7 +105,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
             .subscribe({
                 bleLog("BLE START")
                 ble.stopScan().subscribe {  }
-                scanDisposable.clear()
+//                scanDisposable.clear()
             },{
                 it.printStackTrace()
             },{

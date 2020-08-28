@@ -10,7 +10,7 @@ import io.reactivex.Single
 
 interface IScaleBle : IBleHandler {
     fun init(): Single<Unit>
-    fun startScan(): Completable
+    fun startScan(): Single<QNBleDevice>
     fun stopScan(): Completable
     fun connectDevice(device: QNBleDevice): Completable
     fun disconnectDevice(device: QNBleDevice): Completable

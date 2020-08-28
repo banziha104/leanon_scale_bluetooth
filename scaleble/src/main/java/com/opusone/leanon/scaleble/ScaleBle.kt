@@ -5,6 +5,7 @@ import android.util.Log
 import com.opusone.leanon.scaleble.event.*
 import com.opusone.leanon.scaleble.exception.BluetoothInitException
 import com.opusone.leanon.scaleble.extension.bleTag
+import com.opusone.leanon.scaleble.extension.io
 import com.opusone.leanon.scaleble.extension.plusAssign
 import com.qingniu.health.qnscalesdk.BuildConfig
 import com.qingniu.qnble.utils.QNLogUtils
@@ -19,6 +20,7 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import java.io.Closeable
 import java.lang.Exception
+import java.lang.RuntimeException
 import java.util.concurrent.TimeUnit
 
 class ScaleBle(
@@ -75,20 +77,34 @@ class ScaleBle(
         }
     }
 
-    override fun startScan() : Completable = Completable.create { emit ->
+    lateinit var test : QNBleDevice
+    override fun startScan() : Single<QNBleDevice> {
+        return Single.create<Unit> { emit ->
             isPull = true
             compositeDisposable += pullingObserver.subscribe {
                 scaleApi.startBleDeviceDiscovery { code, msg ->
                     Log.d(bleTag, "startDiscovery code:$code;msg:$msg")
                     if (code == CheckStatus.OK.code) {
-                        Log.d(bleTag, "Start : OK")
+                        emit.onSuccess(Unit)
                     } else if (code == CheckStatus.ERROR_BLUETOOTH_CLOSED.code) {
-                        Log.d(bleTag, "Start : FAIL")
+                        emit.onError(RuntimeException())
                     }
-                    emit.onComplete()
                 }
             }
+        }.flatMap {
+            discoveryObserver
+                .io()
+                .filter{ it == DeviceDiscoveryType.ON_DEVICE_DISCERVER && it.device != null }
+                .map { it.device!! }
+                .firstOrError()
+                .doOnSuccess {
+                    viewModel.currentDevice = it
+                    scaleApi.connectDevice(it,viewModel.createQNUser(context,scaleApi)){ code,msg ->
+                        stopScan().subscribe {  }
+                    }
+                }
         }
+    }
 
     override fun stopScan() : Completable = Completable.create{ emit ->
         isPull = false
