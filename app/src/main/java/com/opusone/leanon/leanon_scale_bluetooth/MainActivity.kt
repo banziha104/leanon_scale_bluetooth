@@ -93,7 +93,9 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
 
     private fun initButton(ble : ScaleBle){
 
-        compositeDisposable += start.clicks()
+        compositeDisposable += start
+            .clicks()
+            .throttleFirst(1000,TimeUnit.MILLISECONDS)
             .subscribe({
                 bleLog("BLE START")
                 ble.startScan().subscribe({
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
             })
 
         compositeDisposable += stop.clicks()
+            .throttleFirst(1000,TimeUnit.MILLISECONDS)
             .subscribe({
                 bleLog("BLE START")
                 ble.stopScan().subscribe {  }
@@ -120,6 +123,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
             })
 
         compositeDisposable += connect.clicks()
+            .throttleFirst(1000,TimeUnit.MILLISECONDS)
             .subscribe({
                 bleLog("Connect")
                 ble.connectDevice(currentDevice).subscribe({},{it.printStackTrace()})
@@ -130,6 +134,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
             })
 
         compositeDisposable += disconnect.clicks()
+            .throttleFirst(1000,TimeUnit.MILLISECONDS)
             .subscribe({
                 bleLog("DISCONNECT")
                 ble.disconnectDevice(currentDevice).subscribe{}

@@ -3,10 +3,11 @@ package com.opusone.leanon.scaleble
 import android.content.Context
 import android.util.Log
 import com.opusone.leanon.scaleble.event.*
+import com.opusone.leanon.scaleble.exception.BluetoothAlreadyConnectedException
+import com.opusone.leanon.scaleble.exception.BluetoothAlreadyTryConnectException
 import com.opusone.leanon.scaleble.exception.BluetoothInitException
 import com.opusone.leanon.scaleble.extension.bleTag
 import com.opusone.leanon.scaleble.extension.io
-import com.opusone.leanon.scaleble.extension.lyjTag
 import com.qingniu.health.qnscalesdk.BuildConfig
 import com.qingniu.qnble.utils.QNLogUtils
 import com.yolanda.health.qnblesdk.constant.CheckStatus
@@ -34,16 +35,25 @@ class ScaleBle(
 
     private val pullingObserver : Observable<Long> by lazy {
         Observable
-            .interval(3, TimeUnit.SECONDS, Schedulers.io())
+            .interval(0,3, TimeUnit.SECONDS, Schedulers.io())
             .takeWhile{ isPull }
+    }
+
+    private val connectionInterval : Observable<Long> by lazy {
+        Observable
+            .interval(0,7,TimeUnit.SECONDS,Schedulers.io())
+            .takeWhile{ !isConnected && !isCallDisconnected }
     }
 
     private val scaleApi : QNBleApi by lazy {
         QNBleApi.getInstance(context)
     }
 
+
     private var isPull = false
     private var isConnected = false
+    private var isCallDisconnected = false
+    private var tryConnecting = false
 
     override fun init(): Single<Unit> = Single.create {
         try {
@@ -123,26 +133,49 @@ class ScaleBle(
 
     override fun connectDevice(device: QNBleDevice): Single<Unit> = Single.create { emit ->
         try {
-            scaleApi.connectDevice(device, viewModel.createQNUser(context, scaleApi)) { code, msg ->
-                Log.d(bleTag, "connect code: $code, msg: $msg")
-                emit.onSuccess(Unit)
-            }
-        }catch (e : Exception){
+            isConnected = false
+            isCallDisconnected = false
+
+            compositeDisposable += connectObserver.io().subscribe({
+                if (it == BLEConnectType.ON_CONNECTED || it == BLEConnectType.ON_SERVICE_SEARCH_COMPLETE ){
+                    isConnected = true
+                    tryConnecting = false
+                    Log.d(bleTag,"이미 연결됨")
+                    return@subscribe
+                }else{
+                    Log.d(bleTag,"연결시도")
+                    if (!tryConnecting){
+                        tryConnecting = true
+                        compositeDisposable += connectionInterval
+                            .subscribe({
+                                scaleApi.connectDevice(
+                                    device,
+                                    viewModel.createQNUser(context, scaleApi)
+                                ) { code, msg ->
+                                    Log.d(bleTag, "connect code: $code, msg: $msg")
+                                    if (code == 0) {
+                                        emit.onSuccess(Unit)
+                                    } else {
+                                        emit.onError(BluetoothAlreadyTryConnectException())
+                                    }
+                                }
+                        }, {
+                            emit.onError(it)
+                            it.printStackTrace()
+                        })
+                    }
+                }
+            },{
+                it.printStackTrace()
+            })
+        } catch (e: Exception) {
             emit.onError(e)
             e.printStackTrace()
         }
-//        compositeDisposable += connectObserver
-//            .io()
-//            .subscribe({
-//                Log.d(bleTag,"여기서 재요청?")
-//
-//            },{
-//                emit.onError(it)
-//                it.printStackTrace()
-//            })
     }
 
     override fun disconnectDevice(device: QNBleDevice): Completable = Completable.create { emit ->
+        isCallDisconnected = true
         scaleApi.disconnectDevice(device){ code, msg ->
             Log.d(bleTag, "disconnect code: $code, msg: $msg")
             emit.onComplete()
@@ -155,7 +188,6 @@ class ScaleBle(
 
 
     // 받아온 데이터를 저장함
-
     override fun getStoreData(): Single<List<QNScaleData>> = Single.create { emit ->
         try {
             emit.onSuccess(
@@ -164,7 +196,7 @@ class ScaleBle(
                     .observeOn(Schedulers.newThread())
                     .map { list ->
                         list.map {
-                            Log.d(lyjTag,"이쪽인가")
+                            Log.d(bleTag,"이쪽인가")
                             it.setUser(viewModel.createQNUser(context, scaleApi))
                             val scaleData = it.generateScaleData()
                             scaleData.measureTime = it.measureTime
@@ -189,7 +221,6 @@ class ScaleBle(
         compositeDisposable.clear()
         it.onComplete()
     }
-
 }
 
 interface IBleHandler : IBleConnector, IDeviceDiscoverer, IDataReceiver
