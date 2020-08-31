@@ -20,18 +20,17 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 
-class ScaleBleViewModel (
+class ScaleBleHandler (
     private val context : Context,
     private val bleConnector: BleConnector = BleConnector(),
     private val deviceDiscoverer: DeviceDiscoverer = DeviceDiscoverer(),
-    private val dataReceiver: DataReceiver = DataReceiver()
+    private val compositeDisposable: CompositeDisposable = CompositeDisposable(),
+    private val dataReceiver: DataReceiver = DataReceiver(compositeDisposable)
 ) : Closeable,
     IBleHandler,
     IBleConnector by bleConnector,
     IDeviceDiscoverer by deviceDiscoverer,
     IDataReceiver by dataReceiver{
-
-    private val compositeDisposable = CompositeDisposable()
     internal var currentDevice : QNBleDevice? = null
 
     fun observe(scaleApi : QNBleApi){
@@ -58,17 +57,6 @@ class ScaleBleViewModel (
                 Log.d(bleTag, "${it.name} : ${it.data?.weight}")
             }
         }
-    }
-
-    fun disconnect(scaleApi: QNBleApi){
-        if (currentDevice != null){
-            scaleApi.disconnectDevice(currentDevice!!){ code, msg ->
-                Log.d(bleTag, "디바이스 해제 완료 code:$code, msg:$msg")
-            }
-        }else {
-            Log.d(bleTag,"연결된 디바이스가 없습니다")
-        }
-
     }
 
     override fun close() {
@@ -140,4 +128,5 @@ class ScaleBleViewModel (
         }
         return Date()
     }
+
 }

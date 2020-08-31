@@ -6,7 +6,7 @@ import com.opusone.leanon.scaleble.event.*
 import com.opusone.leanon.scaleble.exception.BluetoothInitException
 import com.opusone.leanon.scaleble.extension.bleTag
 import com.opusone.leanon.scaleble.extension.io
-import com.opusone.leanon.scaleble.extension.plusAssign
+import com.opusone.leanon.scaleble.extension.lyjTag
 import com.qingniu.health.qnscalesdk.BuildConfig
 import com.qingniu.qnble.utils.QNLogUtils
 import com.yolanda.health.qnblesdk.constant.CheckStatus
@@ -17,6 +17,7 @@ import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.schedulers.Schedulers
 import java.io.Closeable
 import java.lang.Exception
@@ -25,11 +26,12 @@ import java.util.concurrent.TimeUnit
 
 class ScaleBle(
     private val context: Context,
-    private val viewModel: ScaleBleViewModel = ScaleBleViewModel(context)
-) : IScaleBle, IBleHandler by viewModel, Closeable {
+    private val viewModel: ScaleBleHandler = ScaleBleHandler(context)
+) : IScaleBleController, IBleHandler by viewModel, Closeable {
 
     private val CONNECT_TIMEOUT = 3 * 1000
     private val compositeDisposable : CompositeDisposable = CompositeDisposable()
+
     private val pullingObserver : Observable<Long> by lazy {
         Observable
             .interval(3, TimeUnit.SECONDS, Schedulers.io())
@@ -41,6 +43,7 @@ class ScaleBle(
     }
 
     private var isPull = false
+    private var isConnected = false
 
     override fun init(): Single<Unit> = Single.create {
         try {
@@ -77,7 +80,6 @@ class ScaleBle(
         }
     }
 
-    lateinit var test : QNBleDevice
     override fun startScan() : Single<QNBleDevice> {
         return Single.create<Unit> { emit ->
             isPull = true
@@ -99,9 +101,13 @@ class ScaleBle(
                 .firstOrError()
                 .doOnSuccess {
                     viewModel.currentDevice = it
-                    scaleApi.connectDevice(it,viewModel.createQNUser(context,scaleApi)){ code,msg ->
-                        stopScan().subscribe {  }
-                    }
+                    Log.d(bleTag,"여기 뭐가 자꾸 오나")
+                    connectDevice(it)
+                        .subscribe({
+                            Log.d(bleTag,"컨넥션 체크")
+                        },{
+                            it.printStackTrace()
+                        })
                 }
         }
     }
@@ -114,15 +120,32 @@ class ScaleBle(
         }
     }
 
-    override fun connectDevice(device: QNBleDevice): Completable = Completable.create { emit ->
-        scaleApi.connectDevice(device,viewModel.createQNUser(context,scaleApi)){ code, msg ->
-            Log.d(bleTag, "connect code: $code, msg: $msg")
+
+    override fun connectDevice(device: QNBleDevice): Single<Unit> = Single.create { emit ->
+        try {
+            scaleApi.connectDevice(device, viewModel.createQNUser(context, scaleApi)) { code, msg ->
+                Log.d(bleTag, "connect code: $code, msg: $msg")
+                emit.onSuccess(Unit)
+            }
+        }catch (e : Exception){
+            emit.onError(e)
+            e.printStackTrace()
         }
+//        compositeDisposable += connectObserver
+//            .io()
+//            .subscribe({
+//                Log.d(bleTag,"여기서 재요청?")
+//
+//            },{
+//                emit.onError(it)
+//                it.printStackTrace()
+//            })
     }
 
     override fun disconnectDevice(device: QNBleDevice): Completable = Completable.create { emit ->
         scaleApi.disconnectDevice(device){ code, msg ->
             Log.d(bleTag, "disconnect code: $code, msg: $msg")
+            emit.onComplete()
         }
     }
 
@@ -130,9 +153,35 @@ class ScaleBle(
         compositeDisposable.clear()
     }
 
-    override fun getStoreData(): Single<List<QNScaleData>> {
-        TODO("Not yet implemented")
+
+    // 받아온 데이터를 저장함
+
+    override fun getStoreData(): Single<List<QNScaleData>> = Single.create { emit ->
+        try {
+            emit.onSuccess(
+                storeDataObserver
+                    .subscribeOn(Schedulers.newThread())
+                    .observeOn(Schedulers.newThread())
+                    .map { list ->
+                        list.map {
+                            Log.d(lyjTag,"이쪽인가")
+                            it.setUser(viewModel.createQNUser(context, scaleApi))
+                            val scaleData = it.generateScaleData()
+                            scaleData.measureTime = it.measureTime
+                            scaleData
+                        }
+                    }
+                    .debounce(500L, TimeUnit.MILLISECONDS)
+                    .blockingFirst()
+                    .distinctBy { it.measureTime }
+                    .sortedBy { it.measureTime }
+            )
+        }catch (e : Exception){
+            e.printStackTrace()
+            emit.onError(e)
+        }
     }
+
 
     override fun getDataObserver(): Observable<QNDataType> = dataObserver
 

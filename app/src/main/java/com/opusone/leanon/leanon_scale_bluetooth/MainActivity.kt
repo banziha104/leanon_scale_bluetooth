@@ -25,7 +25,6 @@ fun bleLog(str : String) = Log.d("BLE LOG",str)
 
 class MainActivity : AppCompatActivity(), PermissionController.CallBack {
     val compositeDisposable = CompositeDisposable()
-    val scanDisposable = CompositeDisposable()
     lateinit var currentDevice : QNBleDevice
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +46,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
         val ble = ScaleBle(this)
         initButton(ble)
         initDevice()
+
 
         compositeDisposable += ble.connectObserver.subscribe({
             bleLog("connector : ${it.name}")
@@ -82,6 +82,13 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
             bleLog("INIT ERROR")
             it.printStackTrace()
         })
+
+        compositeDisposable += ble.getStoreData().io().subscribe({
+            it.forEach { bleLog("저장된 데이터 : ${it.measureTime} ${it.allItem}") }
+        },{
+            bleLog("에러")
+            it.printStackTrace()
+        })
     }
 
     private fun initButton(ble : ScaleBle){
@@ -115,7 +122,7 @@ class MainActivity : AppCompatActivity(), PermissionController.CallBack {
         compositeDisposable += connect.clicks()
             .subscribe({
                 bleLog("Connect")
-                ble.connectDevice(currentDevice).subscribe{}
+                ble.connectDevice(currentDevice).subscribe({},{it.printStackTrace()})
             },{
                 it.printStackTrace()
             },{
